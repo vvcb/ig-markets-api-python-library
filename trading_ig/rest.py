@@ -6,7 +6,7 @@ IG Markets REST API Library for Python
 http://labs.ig.com/rest-trading-api-reference
 Original version by Lewis Barber - 2014 - http://uk.linkedin.com/in/lewisbarber/
 Modified by Femto Trader - 2014-2015 - https://github.com/femtotrader/
-""" # noqa
+"""  # noqa
 
 import json
 
@@ -181,7 +181,7 @@ class IGService:
 
         try:
             self.BASE_URL = self.D_BASE_URL[acc_type.lower()]
-        except:
+        except Exception:
             raise(Exception("Invalid account type specified, please provide"
                             "LIVE or DEMO."))
 
@@ -615,7 +615,7 @@ class IGService:
         action = 'create'
 
         self.crud_session.HEADERS['LOGGED_IN']['Version'] = str(VERSION)
-        print(params)
+        # print(params)
         response = self._req(action, endpoint, params, session)
         del(self.crud_session.HEADERS['LOGGED_IN']['Version'])
 
@@ -675,10 +675,18 @@ class IGService:
     def fetch_client_sentiment_by_instrument(self, market_id, session=None):
         """Returns the client sentiment for the given instrument's market"""
         params = {}
-        url_params = {
-            'market_id': market_id
-        }
-        endpoint = '/clientsentiment/{market_id}'.format(**url_params)
+        if isinstance(market_id, (list,)):
+            market_ids = ','.join(market_id)
+            url_params = {
+                'market_ids': market_ids
+            }
+            endpoint = '/clientsentiment/?marketIds={market_ids}'.\
+                format(**url_params)
+        else:
+            url_params = {
+                'market_id': market_id
+            }
+            endpoint = '/clientsentiment/{market_id}'.format(**url_params)
         action = 'read'
         response = self._req(action, endpoint, params, session)
         data = self.parse_response(response.text)
@@ -878,7 +886,7 @@ class IGService:
         """Returns a list of historical prices for the given epic, resolution,
         number of points"""
         params = {}
-        if resolution:
+        if resolution and _HAS_PANDAS and self.return_dataframe:
             params['resolution'] = conv_resol(resolution)
         if start_date:
             params['from'] = start_date
@@ -905,7 +913,8 @@ class IGService:
                                                        session=None):
         """Returns a list of historical prices for the given epic, resolution,
         number of points"""
-        resolution = conv_resol(resolution)
+        if _HAS_PANDAS and self.return_dataframe:
+            resolution = conv_resol(resolution)
         params = {}
         url_params = {
             'epic': epic,
@@ -926,7 +935,8 @@ class IGService:
                                                        session=None):
         """Returns a list of historical prices for the given epic, resolution,
         multiplier and date range"""
-        resolution = conv_resol(resolution)
+        if _HAS_PANDAS and self.return_dataframe:
+            resolution = conv_resol(resolution)
 
         # v2
         # start_date = conv_datetime(start_date, 2)
@@ -1117,9 +1127,11 @@ class IGService:
         return data
 
     def disable_client_app_key(self, session=None):
-        """Disables the current application key from processing further requests.
+        """
+        Disables the current application key from processing further requests.
         Disabled keys may be reenabled via the My Account section on
-        the IG Web Dealing Platform."""
+        the IG Web Dealing Platform.
+        """
         params = {}
         endpoint = '/operations/application/disable'
         action = 'update'
